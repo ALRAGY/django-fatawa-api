@@ -25,15 +25,34 @@ class RolePermissionSerializer(serializers.ModelSerializer):
         model = RolePermission
         fields = ['role', 'permission', 'role_id', 'permission_id']
 
+    def validate(self, data):
+        role_id = data.get('role_id')
+        permission_id = data.get('permission_id')
+        if RolePermission.objects.filter(role_id=role_id, permission_id=permission_id).exists():
+            raise serializers.ValidationError(
+                {"detail": "This permission has already been assigned to this role."}
+            )
+        return data
+
 
 class UserPermissionSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
     permission = PermissionSerializer(read_only=True)
+    user_id = serializers.UUIDField(write_only=True)
     permission_id = serializers.IntegerField(write_only=True)
     
     class Meta:
         model = UserPermission
-        fields = ['user', 'permission', 'permission_id']
+        fields = ['user', 'permission', 'user_id', 'permission_id']
+
+    def validate(self, data):
+        user_id = data.get('user_id')
+        permission_id = data.get('permission_id')
+        if UserPermission.objects.filter(user_id=user_id, permission_id=permission_id).exists():
+            raise serializers.ValidationError(
+                {"detail": "This permission has already been assigned to this user."}
+            )
+        return data
 
 
 class UserSerializer(serializers.ModelSerializer):

@@ -87,10 +87,16 @@ class RoleViewSet(viewsets.ModelViewSet):
             )
 
 
-class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
+class PermissionViewSet(viewsets.ModelViewSet):
     queryset = Permission.objects.all()
     serializer_class = PermissionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [permissions.IsAdminUser]
+        else:
+            permission_classes = [permissions.IsAuthenticated]
+        return [permission() for permission in permission_classes]
 
 
 class RolePermissionViewSet(viewsets.ModelViewSet):
@@ -116,12 +122,24 @@ class UserPermissionViewSet(viewsets.ModelViewSet):
         return UserPermission.objects.filter(user=self.request.user)
     
     def perform_create(self, serializer):
-        # Ensure user is marked as custom when adding custom permissions
-        user = serializer.validated_data['user']
+        # Ensure user is marked as custom when adding custom permissions and copy role perms
+        user_id = serializer.validated_data.get('user_id')
+        user = User.objects.get(user_id=user_id)
         if not user.is_custom:
+            if user.role:
+                role_perms = RolePermission.objects.filter(role=user.role).values_list('permission_id', flat=True)
+                existing = UserPermission.objects.filter(user=user).values_list('permission_id', flat=True)
+                perms_to_add = [
+                    UserPermission(user=user, permission_id=pid)
+                    for pid in set(role_perms) - set(existing)
+                ]
+                if perms_to_add:
+                    UserPermission.objects.bulk_create(perms_to_add, batch_size=100)
             user.is_custom = True
             user.save(update_fields=['is_custom'])
+        
         serializer.save()
+        PermissionSyncManager.sync_user_permissions(user.user_id)
     
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def bulk_assign(self, request):
@@ -219,11 +237,27 @@ class UserViewSet(viewsets.ModelViewSet):
         
         try:
             permission = Permission.objects.get(permission_id=permission_id)
+            
+            # COPY LOGIC: Ensure custom users inherit their previous role's permissions physically
+            if not user.is_custom:
+                if user.role:
+                    role_perms = RolePermission.objects.filter(role=user.role).values_list('permission_id', flat=True)
+                    existing = UserPermission.objects.filter(user=user).values_list('permission_id', flat=True)
+                    perms_to_add = [
+                        UserPermission(user=user, permission_id=pid)
+                        for pid in set(role_perms) - set(existing)
+                    ]
+                    if perms_to_add:
+                        UserPermission.objects.bulk_create(perms_to_add, batch_size=100)
+                user.is_custom = True
+                user.save(update_fields=['is_custom'])
+            
             user_permission, created = UserPermission.objects.get_or_create(
                 user=user, permission=permission
             )
             
             if created:
+                PermissionSyncManager.sync_user_permissions(user.user_id)
                 return Response({'message': 'Permission granted successfully'}, status=status.HTTP_201_CREATED)
             else:
                 return Response({'message': 'Permission already exists'}, status=status.HTTP_200_OK)

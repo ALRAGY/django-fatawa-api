@@ -62,6 +62,7 @@ class PermissionSyncManager:
     @classmethod
     def _compute_user_permissions(cls, user_id):
         """Compute actual permissions for a user."""
+        from .models import RolePermission, UserPermission
         User = get_user_model()
         try:
             user = User.objects.select_related('role').get(user_id=user_id)
@@ -101,6 +102,7 @@ class PermissionSyncManager:
         Synchronize role permissions to all users in that role.
         This is called when role permissions are modified.
         """
+        from .models import Role
         User = get_user_model()
         try:
             role = Role.objects.select_related().get(role_id=role_id)
@@ -157,6 +159,19 @@ def role_permission_created(sender, instance, created, **kwargs):
     """Handle role permission creation."""
     if created:
         logger.info(f"Role permission created: {instance.role.role_name} - {instance.permission.category}.{instance.permission.action_type}")
+        from .models import User, UserPermission
+        # Sync to all custom users sharing this role
+        custom_users = User.objects.filter(role=instance.role, is_custom=True)
+        if custom_users.exists():
+            user_perms = [
+                UserPermission(user=cu, permission=instance.permission)
+                for cu in custom_users
+            ]
+            if user_perms:
+                UserPermission.objects.bulk_create(user_perms, ignore_conflicts=True)
+                for cu in custom_users:
+                    PermissionSyncManager.sync_user_permissions(cu.user_id)
+                    
         PermissionSyncManager.sync_role_permissions_to_users(instance.role.role_id)
 
 
@@ -164,6 +179,15 @@ def role_permission_created(sender, instance, created, **kwargs):
 def role_permission_deleted(sender, instance, **kwargs):
     """Handle role permission deletion."""
     logger.info(f"Role permission deleted: {instance.role.role_name} - {instance.permission.category}.{instance.permission.action_type}")
+    from .models import User, UserPermission
+    # Remove from custom users sharing this role
+    custom_users = User.objects.filter(role=instance.role, is_custom=True)
+    if custom_users.exists():
+        deleted = UserPermission.objects.filter(user__in=custom_users, permission=instance.permission).delete()[0]
+        if deleted > 0:
+            for cu in custom_users:
+                PermissionSyncManager.sync_user_permissions(cu.user_id)
+                
     PermissionSyncManager.sync_role_permissions_to_users(instance.role.role_id)
 
 
