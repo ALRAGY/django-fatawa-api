@@ -55,6 +55,28 @@ class UserPermissionSerializer(serializers.ModelSerializer):
         return data
 
 
+class UserRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, min_length=8)
+    role_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+
+    class Meta:
+        model = User
+        fields = ['user_id', 'username', 'email', 'first_name', 'last_name', 'password', 'role_id']
+
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        role_id = validated_data.pop('role_id', None)
+        
+        user = User(**validated_data)
+        user.set_password(password)  # Securely hash the password
+        
+        if role_id:
+            user.role_id = role_id
+            
+        user.save()
+        return user
+
+
 class UserSerializer(serializers.ModelSerializer):
     role = RoleSerializer(read_only=True)
     role_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)

@@ -12,7 +12,8 @@ from django.utils import timezone
 from .models import User, Role, Permission, RolePermission, UserPermission
 from .serializers import (
     UserSerializer, RoleSerializer, PermissionSerializer,
-    RolePermissionSerializer, UserPermissionSerializer, LoginSerializer
+    RolePermissionSerializer, UserPermissionSerializer, LoginSerializer,
+    UserRegisterSerializer
 )
 from .permissions import IsOwnerOrAdmin
 from .permission_sync import PermissionSyncManager
@@ -70,6 +71,7 @@ class RoleViewSet(viewsets.ModelViewSet):
                 {'error': 'permission_ids list is required'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+            
         
         try:
             removed_count = BulkPermissionManager.bulk_remove_role_permissions(
@@ -175,12 +177,17 @@ class UserViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         if self.action == 'create':
-            permission_classes = [permissions.AllowAny]
+            permission_classes = [permissions.IsAdminUser] # Only Admin can register new users
         elif self.action in ['list', 'retrieve']:
             permission_classes = [permissions.IsAuthenticated]
         else:
             permission_classes = [IsOwnerOrAdmin]
         return [permission() for permission in permission_classes]
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UserRegisterSerializer
+        return UserSerializer
     
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
     def login(self, request):
