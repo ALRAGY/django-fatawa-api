@@ -13,7 +13,7 @@ from .models import User, Role, Permission, RolePermission, UserPermission
 from .serializers import (
     UserSerializer, RoleSerializer, PermissionSerializer,
     RolePermissionSerializer, UserPermissionSerializer, LoginSerializer,
-    UserRegisterSerializer
+    UserRegisterSerializer, ChangePasswordSerializer
 )
 from .permissions import IsOwnerOrAdmin
 from .permission_sync import PermissionSyncManager
@@ -92,31 +92,28 @@ class RoleViewSet(viewsets.ModelViewSet):
 class PermissionViewSet(viewsets.ModelViewSet):
     queryset = Permission.objects.all()
     serializer_class = PermissionSerializer
+    permission_classes = [HasAccess]
+    required_permission = "accounts.permissions"
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             permission_classes = [permissions.IsAdminUser]
         else:
-            permission_classes = [permissions.IsAuthenticated]
+            permission_classes = [HasAccess]
         return [permission() for permission in permission_classes]
 
 
 class RolePermissionViewSet(viewsets.ModelViewSet):
     queryset = RolePermission.objects.all()
     serializer_class = RolePermissionSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAdminUser]
-        else:
-            permission_classes = [permissions.IsAuthenticated]
-        return [permission() for permission in permission_classes]
+    permission_classes = [HasAccess]
+    required_permission = "accounts.manage_role_permissions"
 
 
 class UserPermissionViewSet(viewsets.ModelViewSet):
     serializer_class = UserPermissionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [HasAccess]
+    required_permission = "accounts.manage_user_permissions"
     
     def get_queryset(self):
         if self.request.user.is_superuser:
@@ -212,7 +209,16 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({'message': 'Successfully logged out'}, status=status.HTTP_200_OK)
         except Exception:
             return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
-    
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='change-password')
+    def change_password(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save()
+        
+        return Response({'message': 'Password changed successfully.'}, status=status.HTTP_200_OK)
+        
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def profile(self, request):
         serializer = self.get_serializer(request.user)

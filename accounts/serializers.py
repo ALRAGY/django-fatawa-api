@@ -162,3 +162,14 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('Must include username and password')
         
         return data
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=8)
+
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Invalid old password.")
+        return value

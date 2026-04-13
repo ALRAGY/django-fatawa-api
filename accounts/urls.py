@@ -14,5 +14,7 @@ router.register(r'user-permissions', UserPermissionViewSet, basename='user-permi
 router.register(r'system', SystemManagementViewSet, basename='system')
 
 urlpatterns = [
+    # Custom exact endpoint for /api/auth/me/
+    path('me/', UserViewSet.as_view({'get': 'profile'}), name='current-user'),
     path('', include(router.urls)),
 ]

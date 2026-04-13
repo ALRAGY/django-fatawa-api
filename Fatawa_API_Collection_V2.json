@@ -1,0 +1,135 @@
+{
+  "info": {
+    "name": "Django Fatawa API - V2",
+    "description": "Complete production-ready collection for Fatawa API including JWT Auth and RBAC.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login (Get Token)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/login/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "users", "login", ""]
+            }
+          }
+        },
+        {
+          "name": "Register User (Admin Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{access_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"newuser\",\n    \"password\": \"StrongPassword123!\",\n    \"email\": \"new@local.com\",\n    \"first_name\": \"New\",\n    \"last_name\": \"User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "users", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Profile & Security",
+      "item": [
+        {
+          "name": "My Profile (Me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me", ""]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{access_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"old_password\": \"OldPassword123\",\n    \"new_password\": \"NewPassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/change-password/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "users", "change-password", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Role Based Access Control",
+      "item": [
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/roles/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "roles", ""]
+            }
+          }
+        },
+        {
+          "name": "Assign Role to User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{access_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"role_id\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/USER_UUID_HERE/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "users", "USER_UUID_HERE", ""]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "access_token",
+      "value": "YOUR_TOKEN_HERE"
+    }
+  ]
+}
