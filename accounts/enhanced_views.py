@@ -15,7 +15,7 @@ from .serializers import (
     RolePermissionSerializer, UserPermissionSerializer, LoginSerializer,
     UserRegisterSerializer, ChangePasswordSerializer
 )
-from .permissions import IsOwnerOrAdmin
+from .permissions import IsOwnerOrAdmin, HasAccess
 from .permission_sync import PermissionSyncManager
 from .permission_bulk import BulkPermissionManager, PermissionAnalytics
 import logging
